@@ -1,0 +1,15 @@
+stages:
+  - lint
+  - deploy
+
+lint_nuxt:
+  stage: lint
+  script:
+    - python3 /app/infrastructure/scripts/lint.nuxt.py
+
+deploy_assets:
+  stage: deploy
+  needs:
+    - lint_nuxt
+  script:
+    - python3 /app/infrastructure/scripts/deploy.nuxt.py assets

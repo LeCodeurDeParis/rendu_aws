@@ -1,0 +1,4 @@
+{
+  "APP_ENV": "dev",
+  "S3_BUCKET": "rendu-aws-paul-iim"
+}

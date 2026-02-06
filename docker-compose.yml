@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  app:
+    hostname: app_aws
+    container_name: app_aws
+    build:
+      context: .
+      dockerfile: DockerFile
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    tty: true
