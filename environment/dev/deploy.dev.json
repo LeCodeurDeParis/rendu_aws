@@ -1,4 +1,5 @@
 {
   "APP_ENV": "dev",
-  "S3_BUCKET": "rendu-aws-paul-iim"
+  "S3_BUCKET": "rendu-aws-paul-iim",
+  "CLOUDFRONT_DISTRIBUTION_ID": "EMLRU7R59IGZ8"
 }

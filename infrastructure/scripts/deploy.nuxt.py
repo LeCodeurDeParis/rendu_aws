@@ -1,31 +1,45 @@
 import os
+import sys
 import time
 import json
 import boto3
 import subprocess
 import mimetypes
-from dotenv import load_dotenv
 
-#Variables
+# Vérification de l'argument environnement
+if len(sys.argv) < 2:
+    print("Usage: python deploy.nuxt.py <env>")
+    print("  env: dev | prd")
+    sys.exit(1)
 
+ENV = sys.argv[1]
+if ENV not in ["dev", "prd"]:
+    print(f"Invalid environment: {ENV}")
+    print("  Valid options: dev, prd")
+    sys.exit(1)
 
+# Variables
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "../.."))
 
-ENV_DIR = f"{ROOT_DIR}/environment/dev"
-ENV_FILE = f"{ENV_DIR}/.env.dev.deploy"
-DEPLOY_CONFIG_FILE = f"{ENV_DIR}/deploy.dev.json"
+ENV_DIR = f"{ROOT_DIR}/environment/{ENV}"
+DEPLOY_CONFIG_FILE = f"{ENV_DIR}/deploy.{ENV}.json"
 
 CODE_DIR = f"{ROOT_DIR}/code"
 NUXT_DIR = f"{CODE_DIR}/nuxt"
 DIST_DIR = f"{NUXT_DIR}/.output/public"
 
-load_dotenv(ENV_FILE)
-
+# Chargement de la configuration
 with open(DEPLOY_CONFIG_FILE, "r") as f:
     config = json.load(f)
 
 BUCKET = config["S3_BUCKET"]
+CLOUDFRONT_DISTRIBUTION_ID = config["CLOUDFRONT_DISTRIBUTION_ID"]
+
+print(f"Deploying to environment: {ENV}")
+print(f"  Bucket: {BUCKET}")
+print(f"  CloudFront: {CLOUDFRONT_DISTRIBUTION_ID}")
+
 
 def run(cmd, cwd=None):
     print(f"> {cmd}")
@@ -33,20 +47,23 @@ def run(cmd, cwd=None):
     if result.returncode != 0:
         exit(result.returncode)
 
+
 def build_nuxt():
     run("pnpm install", cwd=NUXT_DIR)
     run("pnpm run generate", cwd=NUXT_DIR)
+
 
 def s3_client():
     return boto3.client(
         "s3",
         aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.getenv("AWS_DEFAULT_REGION"),
+        region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-1"),
     )
 
+
 def clear_bucket():
-    print("clearing s3")
+    print("Clearing S3 bucket")
     s3 = s3_client()
     paginator = s3.get_paginator("list_objects_v2")
 
@@ -58,6 +75,7 @@ def clear_bucket():
             Delete={"Objects": [{"Key": obj["Key"]} for obj in page["Contents"]]}
         )
 
+
 def upload_dist():
     print(f"Uploading Nuxt from {DIST_DIR}")
 
@@ -67,7 +85,6 @@ def upload_dist():
 
     s3 = s3_client()
     uploaded = 0
-
 
     for root, _, files in os.walk(DIST_DIR):
         for file in files:
@@ -92,7 +109,8 @@ def upload_dist():
                 s3_key,
                 ExtraArgs=extra_args
             )
-        print(f"Uploaded {uploaded} files to S3")
+    print(f"Uploaded {uploaded} files to S3")
+
 
 def invalidate_cloudfront():
     print("Invalidating CloudFront cache")
@@ -104,7 +122,7 @@ def invalidate_cloudfront():
     )
 
     client.create_invalidation(
-        DistributionId=os.getenv("CLOUDFRONT_DISTRIBUTION_ID"),
+        DistributionId=CLOUDFRONT_DISTRIBUTION_ID,
         InvalidationBatch={
             "Paths": {
                 "Quantity": 1,
@@ -115,14 +133,19 @@ def invalidate_cloudfront():
     )
 
 
-print("Build Nuxt")
+# Main
+print(f"=== Deploying Nuxt to {ENV.upper()} ===")
+
+print("\n[1/4] Building Nuxt")
 build_nuxt()
 
-print("Clean S3")
+print("\n[2/4] Cleaning S3 bucket")
 clear_bucket()
 
-print("Upload")
+print("\n[3/4] Uploading files")
 upload_dist()
+
+print("\n[4/4] Invalidating CloudFront")
 invalidate_cloudfront()
 
-print("deploy finished")
+print(f"\n=== Deploy to {ENV.upper()} finished ===")

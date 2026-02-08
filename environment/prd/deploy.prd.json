@@ -1,0 +1,5 @@
+{
+  "APP_ENV": "prd",
+  "S3_BUCKET": "rendu-aws-paul-iim-prd",
+  "CLOUDFRONT_DISTRIBUTION_ID": "E1AY18BIG8AA4N"
+}
