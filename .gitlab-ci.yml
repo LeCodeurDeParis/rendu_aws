@@ -4,11 +4,6 @@ stages:
   - lint
   - deploy
 
-# Installation des dépendances communes
-.setup: &setup
-  - npm install -g pnpm
-  - pip install boto3
-
 # Lint - exécuté sur toutes les branches
 lint_nuxt:
   stage: lint
@@ -22,7 +17,9 @@ deploy_dev:
   needs:
     - lint_nuxt
   script:
-    - *setup
+    - npm install -g pnpm
+    - apt-get update && apt-get install -y python3-pip
+    - pip3 install boto3 --break-system-packages
     - python3 infrastructure/scripts/deploy.nuxt.py dev
   only:
     - dev
@@ -33,7 +30,9 @@ deploy_prd:
   needs:
     - lint_nuxt
   script:
-    - *setup
+    - npm install -g pnpm
+    - apt-get update && apt-get install -y python3-pip
+    - pip3 install boto3 --break-system-packages
     - python3 infrastructure/scripts/deploy.nuxt.py prd
   only:
     - main
