@@ -4,14 +4,12 @@ stages:
   - lint
   - deploy
 
-# Lint - exécuté sur toutes les branches
 lint_nuxt:
   stage: lint
   script:
     - npm install -g pnpm
     - python3 infrastructure/scripts/lint.nuxt.py
 
-# Deploy DEV - uniquement sur branche dev
 deploy_dev:
   stage: deploy
   needs:
@@ -24,7 +22,6 @@ deploy_dev:
   only:
     - dev
 
-# Deploy PRD - uniquement sur branche main
 deploy_prd:
   stage: deploy
   needs:
