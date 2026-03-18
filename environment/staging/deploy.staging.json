@@ -1,6 +1,6 @@
 {
   "APP_ENV": "staging",
-  "lambda_api": "trellu-api-staging",
+  "lambda_api": "trellu-api-stg",
   "apps": {
     "trellu": {
       "S3_BUCKET": "serverless-project-stg",
