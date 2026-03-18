@@ -1,0 +1,15 @@
+{
+  "APP_ENV": "staging",
+  "apps": {
+    "trellu": {
+      "S3_BUCKET": "serverless-project-stg",
+      "CLOUDFRONT_DISTRIBUTION_ID": "EEABL8L2ZT2UZ",
+      "lambda_api": "trellu-api-staging"
+    },
+    "trellu_admin": {
+      "S3_BUCKET": "serverless-project-admin-stg",
+      "CLOUDFRONT_DISTRIBUTION_ID": "E9KAEJP6CAVZN",
+      "lambda_api": "trellu-api-staging"
+    }
+  }
+}

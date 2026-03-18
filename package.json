@@ -1,0 +1,19 @@
+{
+  "name": "iim_aws",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose up",
+    "dev:api": "bun run dev --filter @iim/api",
+    "dev:trellu": "bun run dev --filter trellu",
+    "dev:admin": "bun run dev --filter trellu_admin",
+    "build:api": "bun run build --filter @iim/api",
+    "build:crons": "bun run build --filter @iim/crons",
+    "build:trellu": "bun run build --filter trellu",
+    "build:admin": "bun run build --filter trellu_admin",
+    "lint": "bun run lint --filter trellu --filter trellu_admin",
+    "migrate": "python3 infrastructure/scripts/migrate.py"
+  },
+  "workspaces": [
+    "code/*"
+  ]
+}

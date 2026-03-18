@@ -1,0 +1,62 @@
+CREATE TABLE IF NOT EXISTS teams (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  cognito_sub VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS team_members (
+  id SERIAL PRIMARY KEY,
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  cognito_sub VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'member',
+  joined_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(team_id, cognito_sub)
+);
+
+CREATE TABLE IF NOT EXISTS team_invitations (
+  id SERIAL PRIMARY KEY,
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  status VARCHAR(20) DEFAULT 'pending',
+  invited_by_sub VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  status VARCHAR(20) DEFAULT 'todo',
+  project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  assignee_sub VARCHAR(255),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS task_files (
+  id SERIAL PRIMARY KEY,
+  task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  file_name VARCHAR(255) NOT NULL,
+  s3_key VARCHAR(512) NOT NULL,
+  content_type VARCHAR(100),
+  uploaded_by_sub VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS backups (
+  id SERIAL PRIMARY KEY,
+  file_name VARCHAR(255) NOT NULL,
+  s3_key VARCHAR(512) NOT NULL,
+  size BIGINT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
