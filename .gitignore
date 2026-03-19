@@ -1,0 +1,14 @@
+.env
+node_modules
+.next
+out
+dist
+*.zip
+.cursor
+.DS_Store
+bun.lock
+env
+.env.*
+**/.env
+**/.env.*
+environment/**/.env*

@@ -1,0 +1,17 @@
+{
+  "APP_ENV": "prod",
+  "apps": {
+    "trellu": {
+      "S3_BUCKET": "serverless-project-383234048358-eu-north-1-an",
+      "CLOUDFRONT_DISTRIBUTION_ID": "E3TKRCEEPIUV6B",
+      "lambda_api": "trellu-api-prod",
+      "lambda_cron": "trellu-cron-backup"
+    },
+    "trellu_admin": {
+      "S3_BUCKET": "serverless-project-admin",
+      "CLOUDFRONT_DISTRIBUTION_ID": "E1TF8IPX97U7YS",
+      "lambda_api": "trellu-api-prod",
+      "lambda_cron": "trellu-cron-backup"
+    }
+  }
+}

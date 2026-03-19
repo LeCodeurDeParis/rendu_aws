@@ -1,8 +1,19 @@
-FROM python:3.8
+FROM oven/bun:1
 
-RUN apt-get update -y && pip3 install boto3 python-dotenv
+RUN apt-get update -y && apt-get install -y \
+    python3 python3-pip postgresql-client \
+    && pip3 install boto3 python-dotenv psycopg2-binary --break-system-packages \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY . /app
+COPY package.json bun.lock* ./
+COPY code/domain/package.json code/domain/package.json
+COPY code/api/package.json code/api/package.json
+COPY code/crons/package.json code/crons/package.json
+COPY code/trellu/package.json code/trellu/package.json
+COPY code/trellu_admin/package.json code/trellu_admin/package.json
 
+RUN bun install
+
+COPY . .
