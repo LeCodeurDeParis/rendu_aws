@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, User } from "lucide-react";
 
@@ -16,19 +16,26 @@ interface Member {
 }
 
 export default function MembersPage() {
-  const params = useParams();
-  const teamId = params.teamId as string;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const teamId = searchParams.get("teamId");
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!teamId) {
+      router.replace("/dashboard");
+      return;
+    }
     api.get<Member[]>(`/teams/${teamId}/members`).then(setMembers).finally(() => setLoading(false));
-  }, [teamId]);
+  }, [teamId, router]);
+
+  if (!teamId) return null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/teams/${teamId}`} className="inline-flex h-9 w-9 items-center justify-center rounded-md border hover:bg-accent">
+        <Link href={`/teams?teamId=${teamId}`} className="inline-flex h-9 w-9 items-center justify-center rounded-md border hover:bg-accent">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div>

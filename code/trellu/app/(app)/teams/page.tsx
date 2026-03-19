@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { Plus, FolderKanban, Users } from "lucide-react";
@@ -19,8 +19,9 @@ interface Team {
 }
 
 export default function TeamPage() {
-  const params = useParams();
-  const teamId = params.teamId as string;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const teamId = searchParams.get("teamId");
   const [team, setTeam] = useState<Team | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,19 +34,23 @@ export default function TeamPage() {
   const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
+    if (!teamId) {
+      router.replace("/dashboard");
+      return;
+    }
     Promise.all([
       api.get<Team[]>("/teams").then((teams) => teams.find((t) => t.id === Number(teamId))),
       api.get<Project[]>(`/projects/teams/${teamId}`),
     ]).then(([t, p]) => {
       setTeam(t ?? null);
-      setProjects(p);
+      setProjects(p ?? []);
       setLoading(false);
     });
-  }, [teamId]);
+  }, [teamId, router]);
 
   async function createProject(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !teamId) return;
     setCreating(true);
     try {
       const project = await api.post<Project>(`/projects/teams/${teamId}`, { name, description: description || null });
@@ -60,7 +65,7 @@ export default function TeamPage() {
 
   async function inviteMember(e: React.FormEvent) {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
+    if (!inviteEmail.trim() || !teamId) return;
     setInviting(true);
     try {
       await api.post(`/invitations/${teamId}`, { email: inviteEmail });
@@ -71,6 +76,7 @@ export default function TeamPage() {
     }
   }
 
+  if (!teamId) return null;
   if (loading) return <div className="text-muted-foreground">Chargement...</div>;
 
   return (
@@ -82,7 +88,7 @@ export default function TeamPage() {
         </div>
         <div className="flex gap-2">
           <Link
-            href={`/teams/${teamId}/members`}
+            href={`/teams/members?teamId=${teamId}`}
             className="inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent"
           >
             <Users className="h-4 w-4" />
@@ -162,7 +168,7 @@ export default function TeamPage() {
           {projects.map((project) => (
             <Link
               key={project.id}
-              href={`/projects/${project.id}`}
+              href={`/projects?projectId=${project.id}`}
               className="group rounded-lg border p-6 transition-colors hover:border-primary/50 hover:bg-accent/50"
             >
               <div className="flex items-center gap-3">

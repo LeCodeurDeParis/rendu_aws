@@ -98,7 +98,7 @@ export default function DashboardPage() {
           {teams.map((team) => (
             <Link
               key={team.id}
-              href={`/teams/${team.id}`}
+              href={`/teams?teamId=${team.id}`}
               className="group rounded-lg border p-6 transition-colors hover:border-primary/50 hover:bg-accent/50"
             >
               <div className="flex items-center gap-3">

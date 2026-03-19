@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { Plus, GripVertical, Trash2, Upload } from "lucide-react";
+import { Plus, GripVertical, Trash2 } from "lucide-react";
 
 interface Task {
   id: number;
@@ -26,8 +26,9 @@ const COLUMNS = [
 ];
 
 export default function ProjectBoardPage() {
-  const params = useParams();
-  const projectId = params.projectId as string;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const projectId = searchParams.get("projectId");
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +36,7 @@ export default function ProjectBoardPage() {
   const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
 
   const loadTasks = useCallback(() => {
+    if (!projectId) return;
     Promise.all([
       api.get<Project>(`/projects/${projectId}`),
       api.get<Task[]>(`/tasks/projects/${projectId}`),
@@ -46,11 +48,15 @@ export default function ProjectBoardPage() {
   }, [projectId]);
 
   useEffect(() => {
+    if (!projectId) {
+      router.replace("/dashboard");
+      return;
+    }
     loadTasks();
-  }, [loadTasks]);
+  }, [projectId, router, loadTasks]);
 
   async function addTask(status: string) {
-    if (!newTaskName.trim()) return;
+    if (!newTaskName.trim() || !projectId) return;
     const task = await api.post<Task>(`/tasks/projects/${projectId}`, { name: newTaskName });
     if (status !== "todo") {
       await api.put<Task>(`/tasks/${task.id}`, { status });
@@ -71,6 +77,7 @@ export default function ProjectBoardPage() {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
   }
 
+  if (!projectId) return null;
   if (loading) return <div className="text-muted-foreground">Chargement...</div>;
 
   return (
