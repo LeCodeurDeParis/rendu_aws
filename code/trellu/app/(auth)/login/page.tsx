@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/lib/cognito";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const verified = searchParams.get("verified") === "true";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,6 +36,11 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-muted-foreground">Connectez-vous à votre compte</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {verified && (
+            <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">
+              Compte vérifié avec succès. Vous pouvez vous connecter.
+            </div>
+          )}
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
           )}

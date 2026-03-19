@@ -34,6 +34,30 @@ export function signUp(email: string, password: string, name: string): Promise<v
   });
 }
 
+export function confirmSignUp(email: string, code: string): Promise<void> {
+  const pool = getUserPool();
+  if (!pool) return Promise.reject(new Error("Cognito not configured"));
+  return new Promise((resolve, reject) => {
+    const cognitoUser = new CognitoUser({ Username: email, Pool: pool });
+    cognitoUser.confirmRegistration(code, true, (err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
+export function resendConfirmationCode(email: string): Promise<void> {
+  const pool = getUserPool();
+  if (!pool) return Promise.reject(new Error("Cognito not configured"));
+  return new Promise((resolve, reject) => {
+    const cognitoUser = new CognitoUser({ Username: email, Pool: pool });
+    cognitoUser.resendConfirmationCode((err) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+}
+
 export function signIn(email: string, password: string): Promise<CognitoUserSession> {
   const pool = getUserPool();
   if (!pool) return Promise.reject(new Error("Cognito not configured"));
