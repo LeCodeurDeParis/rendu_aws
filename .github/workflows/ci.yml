@@ -48,6 +48,10 @@ jobs:
 
       - name: Deploy Fronts
         run: python3 infrastructure/scripts/deploy.front.py staging
+        env:
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_USER_POOL_ID }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL_STAGING }}
 
   deploy_prod:
     if: github.ref == 'refs/heads/main'
@@ -79,3 +83,7 @@ jobs:
 
       - name: Deploy Fronts
         run: python3 infrastructure/scripts/deploy.front.py prod
+        env:
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_USER_POOL_ID }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID }}
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL_PROD }}
