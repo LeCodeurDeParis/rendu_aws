@@ -1,5 +1,5 @@
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -12,7 +12,9 @@ const FROM_EMAIL = process.env.SES_FROM_EMAIL ?? "noreply@trellu.app";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function loadTemplate(name: string, variables: Record<string, string>): string {
-  const templatePath = resolve(__dirname, "../../../emails", `${name}.html`);
+  const lambdaPath = resolve("/var/task/emails", `${name}.html`);
+  const localPath = resolve(__dirname, "../../../emails", `${name}.html`);
+  const templatePath = existsSync(lambdaPath) ? lambdaPath : localPath;
   let html = readFileSync(templatePath, "utf-8");
   for (const [key, value] of Object.entries(variables)) {
     html = html.replaceAll(`{{${key}}}`, value);
