@@ -27,7 +27,10 @@ load_dotenv(f"{ROOT_DIR}/.env")
 with open(f"{ROOT_DIR}/environment/{ENV}/deploy.{ENV}.json", "r") as f:
     config = json.load(f)
 
-LAMBDA_NAME = config.get("lambda_cron", os.getenv("LAMBDA_CRON_NAME", f"trellu-cron-{ENV}"))
+LAMBDA_NAME = config.get(
+    "lambda_cron",
+    os.getenv("LAMBDA_CRON_NAME", "trellu-cron-backup"),
+)
 
 
 def run(cmd, cwd=None):
@@ -45,6 +48,7 @@ def create_zip():
                 filepath = os.path.join(root, file)
                 arcname = os.path.relpath(filepath, DIST_DIR)
                 zf.write(filepath, arcname)
+        zf.writestr("package.json", '{"type":"module"}') 
     size = os.path.getsize(ZIP_PATH)
     print(f"  zip created: {size} bytes")
 

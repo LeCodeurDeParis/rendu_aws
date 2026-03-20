@@ -12,3 +12,4 @@ env
 **/.env
 **/.env.*
 environment/**/.env*
+todo.md

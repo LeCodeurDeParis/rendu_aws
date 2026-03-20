@@ -27,6 +27,14 @@ export function signIn(email: string, password: string): Promise<CognitoUserSess
     cognitoUser.authenticateUser(authDetails, {
       onSuccess: (session) => resolve(session),
       onFailure: (err) => reject(err),
+      newPasswordRequired: (userAttributes) => {
+        delete userAttributes.email_verified;
+        delete userAttributes.email;
+        cognitoUser.completeNewPasswordChallenge(password, userAttributes, {
+          onSuccess: (session) => resolve(session),
+          onFailure: (err) => reject(err),
+        });
+      },
     });
   });
 }

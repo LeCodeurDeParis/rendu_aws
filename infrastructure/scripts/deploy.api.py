@@ -45,6 +45,13 @@ def create_zip():
                 filepath = os.path.join(root, file)
                 arcname = os.path.relpath(filepath, DIST_DIR)
                 zf.write(filepath, arcname)
+        zf.writestr("package.json", '{"type":"module"}')
+        emails_dir = f"{ROOT_DIR}/code/emails"
+        if os.path.exists(emails_dir):
+            for file in os.listdir(emails_dir):
+                filepath = os.path.join(emails_dir, file)
+                if os.path.isfile(filepath):
+                    zf.write(filepath, f"emails/{file}")
     size = os.path.getsize(ZIP_PATH)
     print(f"  zip created: {size} bytes")
 

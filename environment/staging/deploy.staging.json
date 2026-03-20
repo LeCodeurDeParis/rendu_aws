@@ -1,5 +1,6 @@
 {
   "APP_ENV": "staging",
+  "lambda_cron": "trellu-cron-backup",
   "lambda_api": "trellu-api-stg",
   "apps": {
     "trellu": {

@@ -46,8 +46,15 @@ projectsRoutes.put("/:id", async (c) => {
   const isMember = await teamsRepo.isMember(project.team_id, sub);
   if (!isMember) return c.json({ error: "Not a member of this team" }, 403);
 
-  const body = await c.req.json<{ name?: string; description?: string }>();
-  const updated = await projectsRepo.update(id, body);
+  const body = await c.req.json<{ name?: string; description?: string | null }>();
+  if (body.name !== undefined && !String(body.name).trim()) {
+    return c.json({ error: "name cannot be empty" }, 400);
+  }
+  const updated = await projectsRepo.update(id, {
+    ...(body.name !== undefined && { name: String(body.name).trim() }),
+    ...(body.description !== undefined && { description: body.description }),
+  });
+  if (!updated) return c.json({ error: "Project not found" }, 404);
   return c.json(updated);
 });
 

@@ -48,3 +48,26 @@ export async function addMember(teamId: number, cognitoSub: string, role: string
     ON CONFLICT DO NOTHING
   `;
 }
+
+/** Rôle du membre sur l'équipe, ou `null` si absent. */
+export async function getMemberRole(teamId: number, cognitoSub: string): Promise<string | null> {
+  const [row] = await sql<{ role: string }[]>`
+    SELECT role FROM team_members WHERE team_id = ${teamId} AND cognito_sub = ${cognitoSub}
+  `;
+  return row?.role ?? null;
+}
+
+/**
+ * Retire un membre non-owner. Ne supprime jamais la ligne `role = 'owner'`.
+ * @returns `true` si une ligne a été supprimée
+ */
+export async function removeMember(teamId: number, cognitoSub: string): Promise<boolean> {
+  const rows = await sql`
+    DELETE FROM team_members
+    WHERE team_id = ${teamId}
+      AND cognito_sub = ${cognitoSub}
+      AND role IS DISTINCT FROM 'owner'
+    RETURNING id
+  `;
+  return rows.length > 0;
+}

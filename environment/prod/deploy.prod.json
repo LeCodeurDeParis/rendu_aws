@@ -1,7 +1,7 @@
 {
   "APP_ENV": "prod",
-  "lambda_api": "trellu-api-prod",
   "lambda_cron": "trellu-cron-backup",
+  "lambda_api": "trellu-api-prod",
   "apps": {
     "trellu": {
       "S3_BUCKET": "serverless-project-383234048358-eu-north-1-an",

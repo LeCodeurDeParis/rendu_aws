@@ -4,11 +4,13 @@ import type { Task } from "../types/index.js";
 export async function create(
   name: string,
   description: string | null,
-  projectId: number
+  projectId: number,
+  status: string = "todo",
+  assigneeSub: string | null = null
 ): Promise<Task> {
   const [task] = await sql<Task[]>`
-    INSERT INTO tasks (name, description, status, project_id)
-    VALUES (${name}, ${description}, 'todo', ${projectId})
+    INSERT INTO tasks (name, description, status, project_id, assignee_sub)
+    VALUES (${name}, ${description}, ${status}, ${projectId}, ${assigneeSub})
     RETURNING *
   `;
   return task;
@@ -27,14 +29,20 @@ export async function findByProject(projectId: number): Promise<Task[]> {
 
 export async function update(
   id: number,
-  data: { name?: string; description?: string; status?: string; assignee_sub?: string | null }
-): Promise<Task> {
+  data: { name?: string; description?: string | null; status?: string; assignee_sub?: string | null }
+): Promise<Task | null> {
+  const existing = await findById(id);
+  if (!existing) return null;
+  const name = data.name !== undefined ? data.name : existing.name;
+  const description = data.description !== undefined ? data.description : existing.description;
+  const status = data.status !== undefined ? data.status : existing.status;
+  const assignee_sub = data.assignee_sub !== undefined ? data.assignee_sub : existing.assignee_sub;
   const [task] = await sql<Task[]>`
     UPDATE tasks SET
-      name = COALESCE(${data.name ?? null}, name),
-      description = COALESCE(${data.description ?? null}, description),
-      status = COALESCE(${data.status ?? null}, status),
-      assignee_sub = COALESCE(${data.assignee_sub ?? null}, assignee_sub),
+      name = ${name},
+      description = ${description},
+      status = ${status},
+      assignee_sub = ${assignee_sub},
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING *

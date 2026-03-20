@@ -15,15 +15,7 @@ invitationsRoutes.post("/:teamId", async (c) => {
   const team = await teamsRepo.findById(teamId);
   if (!team) return c.json({ error: "Team not found" }, 404);
 
-  const inviter = await cognito.getUserBySub(sub);
   const invitation = await invitationsRepo.create(teamId, email, sub);
-
-  const acceptUrl = `${process.env.FRONTEND_URL ?? "http://localhost:3000"}/invitations?accept=${invitation.id}`;
-  try {
-    await ses.sendInvitationEmail(email, team.name, inviter?.name ?? "Un membre", acceptUrl);
-  } catch (err) {
-    console.error("Failed to send invitation email:", err);
-  }
 
   return c.json(invitation, 201);
 });
@@ -43,10 +35,21 @@ invitationsRoutes.put("/:id/accept", async (c) => {
   if (!invitation) return c.json({ error: "Invitation not found" }, 404);
 
   const user = await cognito.getUserBySub(sub);
-  if (user?.email !== invitation.email) return c.json({ error: "Not your invitation" }, 403);
+  if (user?.email !== invitation.email)
+    return c.json({ error: "Not your invitation" }, 403);
+
+  const team = await teamsRepo.findById(invitation.team_id);
+  if (!team) return c.json({ error: "Team not found" }, 404);
 
   await invitationsRepo.accept(id);
   await teamsRepo.addMember(invitation.team_id, sub);
+
+  try {
+    await ses.sendInvitationAcceptedConfirmationEmail(user.email, team.name);
+  } catch (err) {
+    console.error("Failed to send invitation confirmation email:", err);
+  }
+
   return c.json({ message: "Invitation accepted" });
 });
 
@@ -57,7 +60,8 @@ invitationsRoutes.put("/:id/refuse", async (c) => {
   if (!invitation) return c.json({ error: "Invitation not found" }, 404);
 
   const user = await cognito.getUserBySub(sub);
-  if (user?.email !== invitation.email) return c.json({ error: "Not your invitation" }, 403);
+  if (user?.email !== invitation.email)
+    return c.json({ error: "Not your invitation" }, 403);
 
   await invitationsRepo.refuse(id);
   return c.json({ message: "Invitation refused" });
