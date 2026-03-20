@@ -18,6 +18,18 @@ interface Team {
   name: string;
 }
 
+/** Réponse POST /invitations/:teamId — champs ajoutés par l’API pour le diagnostic SES */
+interface CreateInvitationResponse {
+  id: number;
+  team_id: number;
+  email: string;
+  status: string;
+  invited_by_sub: string;
+  created_at: string;
+  emailSent: boolean;
+  emailError: string | null;
+}
+
 export default function TeamPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -32,6 +44,7 @@ export default function TeamPage() {
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [inviteFeedback, setInviteFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (!teamId) {
@@ -67,10 +80,24 @@ export default function TeamPage() {
     e.preventDefault();
     if (!inviteEmail.trim() || !teamId) return;
     setInviting(true);
+    setInviteFeedback(null);
     try {
-      await api.post(`/invitations/${teamId}`, { email: inviteEmail });
+      const res = await api.post<CreateInvitationResponse>(`/invitations/${teamId}`, { email: inviteEmail });
       setInviteEmail("");
       setShowInvite(false);
+      if (res.emailSent) {
+        setInviteFeedback({ ok: true, message: "Invitation créée — un email a été envoyé." });
+      } else {
+        setInviteFeedback({
+          ok: false,
+          message: res.emailError ?? "L'invitation est enregistrée mais l'email n'a pas pu être envoyé.",
+        });
+      }
+    } catch (err) {
+      setInviteFeedback({
+        ok: false,
+        message: err instanceof Error ? err.message : "Impossible d'envoyer l'invitation.",
+      });
     } finally {
       setInviting(false);
     }
@@ -81,6 +108,26 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6">
+      {inviteFeedback && (
+        <div
+          role="status"
+          className={`rounded-md border px-4 py-3 text-sm ${
+            inviteFeedback.ok
+              ? "border-green-200 bg-green-50 text-green-900 dark:border-green-900 dark:bg-green-950/40 dark:text-green-100"
+              : "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+          }`}
+        >
+          {inviteFeedback.message}
+          <button
+            type="button"
+            onClick={() => setInviteFeedback(null)}
+            className="ml-3 underline underline-offset-2 opacity-80 hover:opacity-100"
+          >
+            Fermer
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">{team?.name ?? "Équipe"}</h1>

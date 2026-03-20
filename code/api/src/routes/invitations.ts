@@ -1,5 +1,11 @@
 import { Hono } from "hono";
-import { invitationsRepo, teamsRepo, cognito, ses } from "@iim/domain";
+import {
+  invitationsRepo,
+  teamsRepo,
+  cognito,
+  ses,
+  invitationEmailFailureMessage,
+} from "@iim/domain";
 import type { Env } from "../index.js";
 
 export const invitationsRoutes = new Hono<Env>();
@@ -18,14 +24,23 @@ invitationsRoutes.post("/:teamId", async (c) => {
   const inviter = await cognito.getUserBySub(sub);
   const invitation = await invitationsRepo.create(teamId, email, sub);
 
-  const acceptUrl = `${process.env.FRONTEND_URL ?? "http://localhost:3000"}/invitations?accept=${invitation.id}`;
+  const acceptUrl = `${process.env.FRONTEND_URL}/invitations?accept=${invitation.id}`;
+  let emailSent = true;
+  let emailError: string | null = null;
   try {
-    await ses.sendInvitationEmail(email, team.name, inviter?.name ?? "Un membre", acceptUrl);
+    await ses.sendInvitationEmail(
+      email,
+      team.name,
+      inviter?.name ?? "Un membre",
+      acceptUrl,
+    );
   } catch (err) {
+    emailSent = false;
+    emailError = invitationEmailFailureMessage(err);
     console.error("Failed to send invitation email:", err);
   }
 
-  return c.json(invitation, 201);
+  return c.json({ ...invitation, emailSent, emailError }, 201);
 });
 
 invitationsRoutes.get("/", async (c) => {
@@ -43,7 +58,8 @@ invitationsRoutes.put("/:id/accept", async (c) => {
   if (!invitation) return c.json({ error: "Invitation not found" }, 404);
 
   const user = await cognito.getUserBySub(sub);
-  if (user?.email !== invitation.email) return c.json({ error: "Not your invitation" }, 403);
+  if (user?.email !== invitation.email)
+    return c.json({ error: "Not your invitation" }, 403);
 
   await invitationsRepo.accept(id);
   await teamsRepo.addMember(invitation.team_id, sub);
@@ -57,7 +73,8 @@ invitationsRoutes.put("/:id/refuse", async (c) => {
   if (!invitation) return c.json({ error: "Invitation not found" }, 404);
 
   const user = await cognito.getUserBySub(sub);
-  if (user?.email !== invitation.email) return c.json({ error: "Not your invitation" }, 403);
+  if (user?.email !== invitation.email)
+    return c.json({ error: "Not your invitation" }, 403);
 
   await invitationsRepo.refuse(id);
   return c.json({ message: "Invitation refused" });
