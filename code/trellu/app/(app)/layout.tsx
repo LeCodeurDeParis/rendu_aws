@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { normalizePathname } from "@/lib/normalize-pathname";
+import { api } from "@/lib/api";
 import {
   LayoutDashboard,
   Mail,
@@ -22,6 +23,23 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = normalizePathname(usePathname());
+  const [pendingInvitations, setPendingInvitations] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+    let cancelled = false;
+    api
+      .get<unknown[]>("/invitations")
+      .then((rows) => {
+        if (!cancelled) setPendingInvitations(Array.isArray(rows) ? rows.length : 0);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingInvitations(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, isLoading, pathname]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -51,20 +69,34 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="text-lg font-bold">Trellu</Link>
         </div>
         <nav className="flex-1 space-y-1 p-3">
-          {navItems.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent ${
-                pathname === href || pathname === `${href}/`
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const isInvitations = href === "/invitations";
+            const badge =
+              isInvitations && pendingInvitations != null && pendingInvitations > 0
+                ? pendingInvitations
+                : null;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent ${
+                  pathname === href || pathname === `${href}/`
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground"
+                }`}
+              >
+                <span className="relative inline-flex shrink-0">
+                  <Icon className="h-4 w-4" />
+                  {badge != null && (
+                    <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+                      {badge > 99 ? "99+" : badge}
+                    </span>
+                  )}
+                </span>
+                <span className="flex-1">{label}</span>
+              </Link>
+            );
+          })}
         </nav>
         <div className="border-t p-3">
           <button

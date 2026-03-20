@@ -3,26 +3,26 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { TaskModal, type Task, type TaskStatus } from "@/components/task-modal";
 import { Plus, GripVertical, Trash2 } from "lucide-react";
-
-interface Task {
-  id: number;
-  name: string;
-  description: string | null;
-  status: "todo" | "in_progress" | "done";
-  assignee_sub: string | null;
-}
 
 interface Project {
   id: number;
   name: string;
   description: string | null;
+  team_id: number;
 }
 
-const COLUMNS = [
-  { key: "todo" as const, label: "À faire", color: "bg-orange-500" },
-  { key: "in_progress" as const, label: "En cours", color: "bg-blue-500" },
-  { key: "done" as const, label: "Terminé", color: "bg-green-500" },
+interface TeamMemberRow {
+  cognito_sub: string;
+  role: string;
+  user: { sub: string; email: string; name: string } | null;
+}
+
+const COLUMNS: { key: TaskStatus; label: string; color: string }[] = [
+  { key: "todo", label: "À faire", color: "bg-orange-500" },
+  { key: "in_progress", label: "En cours", color: "bg-blue-500" },
+  { key: "done", label: "Terminé", color: "bg-green-500" },
 ];
 
 export default function ProjectBoardPage() {
@@ -31,18 +31,28 @@ export default function ProjectBoardPage() {
   const projectId = searchParams.get("projectId");
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<TeamMemberRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newTaskName, setNewTaskName] = useState("");
-  const [addingToColumn, setAddingToColumn] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    mode: "create" | "edit";
+    defaultStatus?: TaskStatus;
+    task?: Task | null;
+  } | null>(null);
 
   const loadTasks = useCallback(() => {
     if (!projectId) return;
     Promise.all([
       api.get<Project>(`/projects/${projectId}`),
       api.get<Task[]>(`/tasks/projects/${projectId}`),
-    ]).then(([p, t]) => {
+    ]).then(async ([p, t]) => {
       setProject(p);
       setTasks(t);
+      try {
+        const m = await api.get<TeamMemberRow[]>(`/teams/${p.team_id}/members`);
+        setMembers(m);
+      } catch {
+        setMembers([]);
+      }
       setLoading(false);
     });
   }, [projectId]);
@@ -55,24 +65,34 @@ export default function ProjectBoardPage() {
     loadTasks();
   }, [projectId, router, loadTasks]);
 
-  async function addTask(status: string) {
-    if (!newTaskName.trim() || !projectId) return;
-    const task = await api.post<Task>(`/tasks/projects/${projectId}`, { name: newTaskName });
-    if (status !== "todo") {
-      await api.put<Task>(`/tasks/${task.id}`, { status });
-      task.status = status as Task["status"];
-    }
-    setTasks((prev) => [...prev, task]);
-    setNewTaskName("");
-    setAddingToColumn(null);
+  function assigneeLabel(sub: string | null): string | null {
+    if (!sub) return null;
+    const m = members.find((x) => x.cognito_sub === sub);
+    return m?.user?.name || m?.user?.email || null;
   }
 
   async function moveTask(taskId: number, newStatus: string) {
     await api.put(`/tasks/${taskId}`, { status: newStatus });
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus as Task["status"] } : t)));
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus as Task["status"] } : t))
+    );
   }
 
-  async function deleteTask(taskId: number) {
+  function handleSaved(task: Task) {
+    setTasks((prev) => {
+      const i = prev.findIndex((t) => t.id === task.id);
+      if (i === -1) return [...prev, task];
+      const next = [...prev];
+      next[i] = task;
+      return next;
+    });
+  }
+
+  function handleDeleted(taskId: number) {
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+  }
+
+  async function deleteTaskQuick(taskId: number) {
     await api.delete(`/tasks/${taskId}`);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
   }
@@ -86,6 +106,20 @@ export default function ProjectBoardPage() {
         <h1 className="text-2xl font-bold">{project?.name ?? "Projet"}</h1>
         {project?.description && <p className="text-sm text-muted-foreground">{project.description}</p>}
       </div>
+
+      {modal && project && (
+        <TaskModal
+          open
+          onClose={() => setModal(null)}
+          mode={modal.mode}
+          projectId={project.id}
+          defaultStatus={modal.defaultStatus}
+          task={modal.task ?? undefined}
+          members={members}
+          onSaved={handleSaved}
+          onDeleted={modal.mode === "edit" ? handleDeleted : undefined}
+        />
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         {COLUMNS.map(({ key, label, color }) => {
@@ -109,67 +143,57 @@ export default function ProjectBoardPage() {
                   </span>
                 </div>
                 <button
-                  onClick={() => setAddingToColumn(key)}
+                  type="button"
+                  onClick={() => setModal({ mode: "create", defaultStatus: key })}
                   className="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent"
+                  aria-label="Nouvelle tâche"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
 
               <div className="space-y-2">
-                {columnTasks.map((task) => (
+                {columnTasks.map((task) => {
+                  const assigneeName = assigneeLabel(task.assignee_sub);
+                  return (
                   <div
                     key={task.id}
-                    draggable
-                    onDragStart={(e) => e.dataTransfer.setData("taskId", String(task.id))}
-                    className="group cursor-grab rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
+                    className="group rounded-md border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2">
-                        <GripVertical className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                        <div>
-                          <p className="text-sm font-medium">{task.name}</p>
-                          {task.description && (
-                            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                          )}
-                        </div>
+                      <div
+                        draggable
+                        onDragStart={(e) => e.dataTransfer.setData("taskId", String(task.id))}
+                        className="mt-0.5 cursor-grab text-muted-foreground opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+                        aria-hidden
+                      >
+                        <GripVertical className="h-4 w-4" />
                       </div>
                       <button
-                        onClick={() => deleteTask(task.id)}
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
+                        onClick={() => setModal({ mode: "edit", task })}
+                      >
+                        <p className="text-sm font-medium">{task.name}</p>
+                        {task.description && (
+                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+                        )}
+                        {assigneeName && (
+                          <p className="mt-1 text-xs text-primary/80">{assigneeName}</p>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteTaskQuick(task.id)}
                         className="flex-shrink-0 opacity-0 group-hover:opacity-100"
+                        aria-label="Supprimer"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
                       </button>
                     </div>
                   </div>
-                ))}
-
-                {addingToColumn === key && (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      addTask(key);
-                    }}
-                    className="space-y-2"
-                  >
-                    <input
-                      type="text"
-                      value={newTaskName}
-                      onChange={(e) => setNewTaskName(e.target.value)}
-                      placeholder="Nom de la tâche"
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                      autoFocus
-                    />
-                    <div className="flex gap-2">
-                      <button type="submit" className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90">
-                        Ajouter
-                      </button>
-                      <button type="button" onClick={() => setAddingToColumn(null)} className="inline-flex h-8 items-center rounded-md border px-3 text-xs font-medium hover:bg-accent">
-                        Annuler
-                      </button>
-                    </div>
-                  </form>
-                )}
+                  );
+                })}
               </div>
             </div>
           );
