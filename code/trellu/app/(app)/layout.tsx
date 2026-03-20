@@ -6,7 +6,6 @@ import Link from "next/link";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard,
-  Users,
   Mail,
   User,
   LogOut,
@@ -25,7 +24,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/login");
+      // Conserver la query (ex. /invitations?accept=) pour le flux lien email → login
+      const dest =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/login";
+      router.replace(`/login?redirect=${encodeURIComponent(dest)}`);
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -51,7 +55,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
               key={href}
               href={href}
               className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent ${
-                pathname === href ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+                pathname === href || pathname === `${href}/`
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground"
               }`}
             >
               <Icon className="h-4 w-4" />

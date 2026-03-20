@@ -4,11 +4,13 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/lib/cognito";
+import { isSafeInternalPath } from "@/lib/safe-redirect";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verified = searchParams.get("verified") === "true";
+  const redirectParam = searchParams.get("redirect");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,7 +22,9 @@ function LoginForm() {
     setLoading(true);
     try {
       await signIn(email, password);
-      router.push("/dashboard");
+      const next =
+        redirectParam && isSafeInternalPath(redirectParam) ? redirectParam : "/dashboard";
+      router.push(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de connexion");
     } finally {
