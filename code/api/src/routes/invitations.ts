@@ -1,20 +1,8 @@
 import { Hono } from "hono";
-import {
-  invitationsRepo,
-  teamsRepo,
-  cognito,
-  ses,
-  invitationEmailFailureMessage,
-} from "@iim/domain";
+import { invitationsRepo, teamsRepo, cognito, ses } from "@iim/domain";
 import type { Env } from "../index.js";
 
 export const invitationsRoutes = new Hono<Env>();
-
-function invitationAcceptUrl(invitationId: number): string {
-  const raw = process.env.FRONTEND_URL ?? "http://localhost:3000";
-  const base = raw.replace(/\/+$/, "");
-  return `${base}/invitations?accept=${invitationId}`;
-}
 
 invitationsRoutes.post("/:teamId", async (c) => {
   const sub = c.get("cognitoSub");
@@ -27,26 +15,9 @@ invitationsRoutes.post("/:teamId", async (c) => {
   const team = await teamsRepo.findById(teamId);
   if (!team) return c.json({ error: "Team not found" }, 404);
 
-  const inviter = await cognito.getUserBySub(sub);
   const invitation = await invitationsRepo.create(teamId, email, sub);
 
-  const acceptUrl = invitationAcceptUrl(invitation.id);
-  let emailSent = true;
-  let emailError: string | null = null;
-  try {
-    await ses.sendInvitationEmail(
-      email,
-      team.name,
-      inviter?.name ?? "Un membre",
-      acceptUrl,
-    );
-  } catch (err) {
-    emailSent = false;
-    emailError = invitationEmailFailureMessage(err);
-    console.error("Failed to send invitation email:", err);
-  }
-
-  return c.json({ ...invitation, emailSent, emailError }, 201);
+  return c.json(invitation, 201);
 });
 
 invitationsRoutes.get("/", async (c) => {
@@ -67,8 +38,18 @@ invitationsRoutes.put("/:id/accept", async (c) => {
   if (user?.email !== invitation.email)
     return c.json({ error: "Not your invitation" }, 403);
 
+  const team = await teamsRepo.findById(invitation.team_id);
+  if (!team) return c.json({ error: "Team not found" }, 404);
+
   await invitationsRepo.accept(id);
   await teamsRepo.addMember(invitation.team_id, sub);
+
+  try {
+    await ses.sendInvitationAcceptedConfirmationEmail(user.email, team.name);
+  } catch (err) {
+    console.error("Failed to send invitation confirmation email:", err);
+  }
+
   return c.json({ message: "Invitation accepted" });
 });
 

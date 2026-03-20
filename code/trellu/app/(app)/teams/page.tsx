@@ -18,18 +18,6 @@ interface Team {
   name: string;
 }
 
-/** Réponse POST /invitations/:teamId — champs ajoutés par l’API pour le diagnostic SES */
-interface CreateInvitationResponse {
-  id: number;
-  team_id: number;
-  email: string;
-  status: string;
-  invited_by_sub: string;
-  created_at: string;
-  emailSent: boolean;
-  emailError: string | null;
-}
-
 export default function TeamPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -82,17 +70,14 @@ export default function TeamPage() {
     setInviting(true);
     setInviteFeedback(null);
     try {
-      const res = await api.post<CreateInvitationResponse>(`/invitations/${teamId}`, { email: inviteEmail });
+      await api.post(`/invitations/${teamId}`, { email: inviteEmail });
       setInviteEmail("");
       setShowInvite(false);
-      if (res.emailSent) {
-        setInviteFeedback({ ok: true, message: "Invitation créée — un email a été envoyé." });
-      } else {
-        setInviteFeedback({
-          ok: false,
-          message: res.emailError ?? "L'invitation est enregistrée mais l'email n'a pas pu être envoyé.",
-        });
-      }
+      setInviteFeedback({
+        ok: true,
+        message:
+          "Invitation créée. La personne pourra l'accepter depuis l'application après connexion ; un email de confirmation lui sera envoyé à l'acceptation.",
+      });
     } catch (err) {
       setInviteFeedback({
         ok: false,
