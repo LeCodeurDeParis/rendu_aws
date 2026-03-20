@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TaskModal, type Task, type TaskStatus } from "@/components/task-modal";
 import { ProjectModal, type ProjectPayload } from "@/components/project-modal";
+import { TaskFiles, type TaskFileRow } from "@/components/task-files";
 import { Plus, GripVertical, Trash2, Pencil } from "lucide-react";
 
 interface Project extends ProjectPayload {}
@@ -35,6 +36,7 @@ export default function ProjectBoardPage() {
     task?: Task | null;
   } | null>(null);
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [taskFiles, setTaskFiles] = useState<Record<number, TaskFileRow[]>>({});
 
   const loadTasks = useCallback(() => {
     if (!projectId) return;
@@ -61,6 +63,24 @@ export default function ProjectBoardPage() {
     }
     loadTasks();
   }, [projectId, router, loadTasks]);
+
+  useEffect(() => {
+    if (!tasks.length) {
+      setTaskFiles({});
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      tasks.map((t) =>
+        api.get<TaskFileRow[]>(`/files/tasks/${t.id}`).then((f) => [t.id, f] as const)
+      )
+    ).then((entries) => {
+      if (!cancelled) setTaskFiles(Object.fromEntries(entries));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks]);
 
   function assigneeLabel(sub: string | null): string | null {
     if (!sub) return null;
@@ -92,6 +112,11 @@ export default function ProjectBoardPage() {
   async function deleteTaskQuick(taskId: number) {
     await api.delete(`/tasks/${taskId}`);
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setTaskFiles((prev) => {
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
   }
 
   if (!projectId) return null;
@@ -193,23 +218,39 @@ export default function ProjectBoardPage() {
                       >
                         <GripVertical className="h-4 w-4" />
                       </div>
-                      <button
-                        type="button"
-                        className="min-w-0 flex-1 text-left"
-                        onClick={() => setModal({ mode: "edit", task })}
-                      >
-                        <p className="text-sm font-medium">{task.name}</p>
-                        {task.description && (
-                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-                        )}
-                        {assigneeName && (
-                          <p className="mt-1 text-xs text-primary/80">{assigneeName}</p>
-                        )}
-                      </button>
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          className="w-full text-left"
+                          onClick={() => setModal({ mode: "edit", task })}
+                        >
+                          <p className="text-sm font-medium">{task.name}</p>
+                          {task.description && (
+                            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+                          )}
+                          {assigneeName && (
+                            <p className="mt-1 text-xs text-primary/80">{assigneeName}</p>
+                          )}
+                        </button>
+                        <div
+                          className="mt-1"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <TaskFiles
+                            taskId={task.id}
+                            files={taskFiles[task.id] ?? []}
+                            compact
+                            onFilesChange={(next) =>
+                              setTaskFiles((prev) => ({ ...prev, [task.id]: next }))
+                            }
+                          />
+                        </div>
+                      </div>
                       <button
                         type="button"
                         onClick={() => deleteTaskQuick(task.id)}
-                        className="flex-shrink-0 opacity-0 group-hover:opacity-100"
+                        className="shrink-0 opacity-0 group-hover:opacity-100"
                         aria-label="Supprimer"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
