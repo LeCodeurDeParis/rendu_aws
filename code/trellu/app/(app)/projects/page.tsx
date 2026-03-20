@@ -4,14 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { TaskModal, type Task, type TaskStatus } from "@/components/task-modal";
-import { Plus, GripVertical, Trash2 } from "lucide-react";
+import { ProjectModal, type ProjectPayload } from "@/components/project-modal";
+import { Plus, GripVertical, Trash2, Pencil } from "lucide-react";
 
-interface Project {
-  id: number;
-  name: string;
-  description: string | null;
-  team_id: number;
-}
+interface Project extends ProjectPayload {}
 
 interface TeamMemberRow {
   cognito_sub: string;
@@ -38,6 +34,7 @@ export default function ProjectBoardPage() {
     defaultStatus?: TaskStatus;
     task?: Task | null;
   } | null>(null);
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
 
   const loadTasks = useCallback(() => {
     if (!projectId) return;
@@ -102,10 +99,37 @@ export default function ProjectBoardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{project?.name ?? "Projet"}</h1>
-        {project?.description && <p className="text-sm text-muted-foreground">{project.description}</p>}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">{project?.name ?? "Projet"}</h1>
+          {project?.description && <p className="text-sm text-muted-foreground">{project.description}</p>}
+        </div>
+        {project && (
+          <button
+            type="button"
+            onClick={() => setProjectSettingsOpen(true)}
+            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-accent"
+          >
+            <Pencil className="h-4 w-4" />
+            Modifier le projet
+          </button>
+        )}
       </div>
+
+      {project && (
+        <ProjectModal
+          open={projectSettingsOpen}
+          onClose={() => setProjectSettingsOpen(false)}
+          project={project}
+          onSaved={(p) => {
+            setProject(p);
+            setProjectSettingsOpen(false);
+          }}
+          onDeleted={() => {
+            void router.push(`/teams?teamId=${project.team_id}`);
+          }}
+        />
+      )}
 
       {modal && project && (
         <TaskModal

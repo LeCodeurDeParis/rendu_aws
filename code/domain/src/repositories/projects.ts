@@ -21,11 +21,18 @@ export async function findByTeam(teamId: number): Promise<Project[]> {
   `;
 }
 
-export async function update(id: number, data: { name?: string; description?: string }): Promise<Project> {
+export async function update(
+  id: number,
+  data: { name?: string; description?: string | null }
+): Promise<Project | null> {
+  const existing = await findById(id);
+  if (!existing) return null;
+  const name = data.name !== undefined ? data.name : existing.name;
+  const description = data.description !== undefined ? data.description : existing.description;
   const [project] = await sql<Project[]>`
     UPDATE projects SET
-      name = COALESCE(${data.name ?? null}, name),
-      description = COALESCE(${data.description ?? null}, description),
+      name = ${name},
+      description = ${description},
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING *

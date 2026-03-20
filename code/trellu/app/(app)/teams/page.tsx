@@ -4,12 +4,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
-import { Plus, FolderKanban, Users } from "lucide-react";
+import { ProjectModal, type ProjectPayload } from "@/components/project-modal";
+import { Plus, FolderKanban, Users, Pencil, Trash2 } from "lucide-react";
 
-interface Project {
-  id: number;
-  name: string;
-  description: string | null;
+interface Project extends ProjectPayload {
   created_at: string;
 }
 
@@ -33,6 +31,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
   const [inviteFeedback, setInviteFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
   useEffect(() => {
     if (!teamId) {
@@ -61,6 +60,16 @@ export default function TeamPage() {
       setShowCreate(false);
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function deleteProject(projectId: number) {
+    if (!confirm("Supprimer ce projet ? Toutes les tâches associées seront supprimées.")) return;
+    try {
+      await api.delete(`/projects/${projectId}`);
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    } catch {
+      /* ignore */
     }
   }
 
@@ -198,25 +207,65 @@ export default function TeamPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <Link
+            <div
               key={project.id}
-              href={`/projects?projectId=${project.id}`}
-              className="group rounded-lg border p-6 transition-colors hover:border-primary/50 hover:bg-accent/50"
+              className="group relative rounded-lg border transition-colors hover:border-primary/50"
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
-                  <FolderKanban className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-semibold group-hover:text-primary">{project.name}</h3>
-                  {project.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">{project.description}</p>
-                  )}
-                </div>
+              <div className="absolute right-2 top-2 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingProject(project)}
+                  className="rounded-md border bg-background p-1.5 shadow-sm hover:bg-accent"
+                  aria-label="Modifier le projet"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteProject(project.id)}
+                  className="rounded-md border bg-background p-1.5 text-destructive shadow-sm hover:bg-destructive/10"
+                  aria-label="Supprimer le projet"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
-            </Link>
+              <Link
+                href={`/projects?projectId=${project.id}`}
+                className="block p-6 transition-colors hover:bg-accent/50"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <FolderKanban className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold group-hover:text-primary">{project.name}</h3>
+                    {project.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-1">{project.description}</p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            </div>
           ))}
         </div>
+      )}
+
+      {editingProject && teamId && (
+        <ProjectModal
+          open
+          onClose={() => setEditingProject(null)}
+          project={editingProject}
+          onSaved={(p) => {
+            setProjects((prev) =>
+              prev.map((x) => (x.id === p.id ? { ...x, ...p } : x))
+            );
+            setEditingProject(null);
+          }}
+          onDeleted={() => {
+            setProjects((prev) => prev.filter((x) => x.id !== editingProject.id));
+            setEditingProject(null);
+          }}
+        />
       )}
     </div>
   );
