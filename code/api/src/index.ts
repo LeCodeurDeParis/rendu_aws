@@ -19,7 +19,23 @@ export type Env = {
 
 const app = new Hono<Env>();
 
-app.use("*", cors());
+app.use(
+  "*",
+  cors({
+    origin: [
+      "https://d3g175w85dokrw.cloudfront.net",
+      "http://localhost:3000",
+      "https://d17hlbjx83nygp.cloudfront.net",
+      "https://d31c8aryhjt7f7.cloudfront.net",
+      "https://diznqc3cq5ktn.cloudfront.net",
+    ],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["*"],
+    credentials: true,
+    exposeHeaders: ["Content-Type", "Authorization"],
+    maxAge: 86400,
+  }),
+);
 app.use("*", logger());
 
 app.get("/", (c) => c.json({ message: "API Trellu" }));
