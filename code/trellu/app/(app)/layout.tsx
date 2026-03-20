@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
+import { normalizePathname } from "@/lib/normalize-pathname";
 import {
   LayoutDashboard,
   Mail,
@@ -20,14 +21,14 @@ const navItems = [
 function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = normalizePathname(usePathname());
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       // Conserver la query (ex. /invitations?accept=) pour le flux lien email → login
       const dest =
         typeof window !== "undefined"
-          ? `${window.location.pathname}${window.location.search}`
+          ? `${normalizePathname(window.location.pathname)}${window.location.search}`
           : "/login";
       router.replace(`/login?redirect=${encodeURIComponent(dest)}`);
     }

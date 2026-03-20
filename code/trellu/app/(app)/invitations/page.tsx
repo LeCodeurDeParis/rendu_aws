@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
+import { normalizePathname } from "@/lib/normalize-pathname";
 import { Mail, Check, X } from "lucide-react";
 
 interface Invitation {
@@ -16,7 +17,7 @@ interface Invitation {
 function InvitationsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = normalizePathname(usePathname());
   const acceptParam = searchParams.get("accept");
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);

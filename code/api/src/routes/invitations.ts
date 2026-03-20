@@ -10,6 +10,12 @@ import type { Env } from "../index.js";
 
 export const invitationsRoutes = new Hono<Env>();
 
+function invitationAcceptUrl(invitationId: number): string {
+  const raw = process.env.FRONTEND_URL ?? "http://localhost:3000";
+  const base = raw.replace(/\/+$/, "");
+  return `${base}/invitations?accept=${invitationId}`;
+}
+
 invitationsRoutes.post("/:teamId", async (c) => {
   const sub = c.get("cognitoSub");
   const teamId = Number(c.req.param("teamId"));
@@ -24,7 +30,7 @@ invitationsRoutes.post("/:teamId", async (c) => {
   const inviter = await cognito.getUserBySub(sub);
   const invitation = await invitationsRepo.create(teamId, email, sub);
 
-  const acceptUrl = `${process.env.FRONTEND_URL}/invitations?accept=${invitation.id}`;
+  const acceptUrl = invitationAcceptUrl(invitation.id);
   let emailSent = true;
   let emailError: string | null = null;
   try {
